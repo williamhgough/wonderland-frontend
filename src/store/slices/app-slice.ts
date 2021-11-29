@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import { getAddresses } from "../../constants";
 import { StakingContract, MemoTokenContract, TimeTokenContract } from "../../abi";
-import { getWMemoPrice, setAll } from "../../helpers";
+import { setAll } from "../../helpers";
 import { createSlice, createSelector, createAsyncThunk } from "@reduxjs/toolkit";
 import { JsonRpcProvider } from "@ethersproject/providers";
 import { getMarketPrice, getTokenPrice } from "../../helpers";
@@ -11,13 +11,12 @@ import allBonds from "../../helpers/bond";
 interface ILoadAppDetails {
     networkID: number;
     provider: JsonRpcProvider;
-    address: string;
 }
 
 export const loadAppDetails = createAsyncThunk(
     "app/loadAppDetails",
     //@ts-ignore
-    async ({ networkID, provider, address }: ILoadAppDetails) => {
+    async ({ networkID, provider }: ILoadAppDetails) => {
         const mimPrice = getTokenPrice("MIM");
         const addresses = getAddresses(networkID);
 
@@ -28,7 +27,6 @@ export const loadAppDetails = createAsyncThunk(
         const timeContract = new ethers.Contract(addresses.TIME_ADDRESS, TimeTokenContract, provider);
 
         const marketPrice = ((await getMarketPrice(networkID, provider)) / Math.pow(10, 9)) * mimPrice;
-        const wMemoMarketPrice = await getWMemoPrice(address);
 
         const totalSupply = (await timeContract.totalSupply()) / Math.pow(10, 9);
         const circSupply = (await memoContract.circulatingSupply()) / Math.pow(10, 9);
@@ -76,7 +74,6 @@ export const loadAppDetails = createAsyncThunk(
             stakingTVL,
             stakingRebase,
             marketPrice,
-            wMemoMarketPrice,
             currentBlockTime,
             nextRebase,
             rfv,
@@ -93,7 +90,6 @@ export interface IAppSlice {
     loading: boolean;
     stakingTVL: number;
     marketPrice: number;
-    wMemoMarketPrice: number;
     marketCap: number;
     circSupply: number;
     currentIndex: string;

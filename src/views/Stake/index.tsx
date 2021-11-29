@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Grid, InputAdornment, OutlinedInput, Zoom } from "@material-ui/core";
 import RebaseTimer from "../../components/RebaseTimer";
-import { trim, getWMemoPrice } from "../../helpers";
+import { trim } from "../../helpers";
 import { changeStake, changeApproval } from "../../store/slices/stake-thunk";
 import "./stake.scss";
 import { useWeb3Context } from "../../hooks";
@@ -32,9 +32,6 @@ function Stake() {
     });
     const timeMarketValue = useSelector<IReduxState, number>(state => {
         return state.app.marketPrice;
-    });
-    const wMemoMarketValue = useSelector<IReduxState, number>(state => {
-        return state.app.wMemoMarketPrice;
     });
     const memoBalance = useSelector<IReduxState, string>(state => {
         return state.account.balances && state.account.balances.memo;
@@ -104,15 +101,30 @@ function Stake() {
     const trimmedWMemoBalance = trim(Number(wMemoBalance), 10);
     const trimmedStakingAPY = trim(stakingAPY * 100, 1);
     const stakingRebasePercentage = trim(stakingRebase * 100, 4);
+    const wMemoMarketValue = timeMarketValue * (Number(currentIndex) * 4.5);
+
     const nextMemoRewardAmount = trim((Number(stakingRebasePercentage) / 100) * Number(trim(Number(trimmedMemoBalance), 12)), 6);
     const nextMemoRewardValue = Number(nextMemoRewardAmount) * Number(trim(timeMarketValue, 2));
     const nextWMemoRewardAmount = trim((Number(stakingRebasePercentage) / 100) * Number(trimmedWMemoBalance), 12);
     const nextWMemoRewardValue = Number(nextWMemoRewardAmount) * Number(trim(wMemoMarketValue, 2));
+    const totalMarketValueMEMO = Number(trimmedMemoBalance) * Number(trim(timeMarketValue, 2));
+    const totalMarketValueWMEMO = Number(trimmedWMemoBalance) * Number(trim(wMemoMarketValue, 2));
 
     const stakedBalance = Number(trimmedWMemoBalance) > 0 ? trimmedWMemoBalance : trimmedMemoBalance;
     const stakedSymbol = Number(trimmedWMemoBalance) > 0 ? "wMEMO" : "MEMO";
-    const nextRebaseRewardAmount = Number(nextWMemoRewardAmount) > 0 ? trim(Number(nextWMemoRewardAmount), 10) : nextMemoRewardAmount;
     const nextRebaseRewardValue = Number(nextWMemoRewardValue) > 0 ? nextWMemoRewardValue : nextMemoRewardValue;
+    const totalMarketValue = Number(trimmedWMemoBalance) > 0 ? totalMarketValueWMEMO : totalMarketValueMEMO;
+    const marketValueCalc = Number(trimmedWMemoBalance) > 0 ? wMemoMarketValue : timeMarketValue;
+
+    const calcNewBalance = (tokenAmount: number, marketValue: number) => {
+        let value = parseFloat(trimmedStakingAPY) / 100;
+        value = Math.pow(value - 1, 1 / (365 * 3)) - 1 || 0;
+        let balance = Number(tokenAmount);
+        for (let i = 0; i < 5 * 3; i++) {
+            balance += balance * value;
+        }
+        return balance * marketValue;
+    };
 
     return (
         <div className="stake-view">
@@ -287,17 +299,24 @@ function Stake() {
                                         </div>
 
                                         <div className="data-row">
-                                            <p className="data-row-name">Next Reward Amount</p>
-                                            <p className="data-row-value">
-                                                {isAppLoading ? (
-                                                    <Skeleton width="80px" />
-                                                ) : (
-                                                    <>
-                                                        {nextRebaseRewardAmount} {stakedSymbol}
-                                                    </>
-                                                )}
-                                            </p>
+                                            <p className="data-row-name">Your Staked Market Value</p>
+                                            <p className="data-row-value">{isAppLoading ? <Skeleton width="80px" /> : <>${trim(Number(totalMarketValue), 2)}</>}</p>
                                         </div>
+
+                                        {Number(nextMemoRewardAmount) > 0 && (
+                                            <div className="data-row">
+                                                <p className="data-row-name">Next Reward Amount</p>
+                                                <p className="data-row-value">
+                                                    {isAppLoading ? (
+                                                        <Skeleton width="80px" />
+                                                    ) : (
+                                                        <>
+                                                            {nextMemoRewardAmount} {stakedSymbol}
+                                                        </>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        )}
 
                                         <div className="data-row">
                                             <p className="data-row-name">Next Reward Yield</p>
@@ -312,6 +331,12 @@ function Stake() {
                                         <div className="data-row">
                                             <p className="data-row-name">ROI (5-Day Rate)</p>
                                             <p className="data-row-value">{isAppLoading ? <Skeleton width="80px" /> : <>{trim(Number(fiveDayRate) * 100, 4)}%</>}</p>
+                                        </div>
+                                        <div className="data-row">
+                                            <p className="data-row-name">Market Value (5-Day Rate)</p>
+                                            <p className="data-row-value">
+                                                {isAppLoading ? <Skeleton width="80px" /> : <>${trim(calcNewBalance(Number(stakedBalance), marketValueCalc), 2)}</>}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
